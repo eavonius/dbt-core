@@ -45,7 +45,18 @@
     {#-- Process schema changes. Returns dict of changes if successful. Use source columns for upserting/merging --#}
     {% set dest_columns = process_schema_changes(on_schema_change, temp_relation, existing_relation) %}
     {% if not dest_columns %}
-      {% set dest_columns = adapter.get_columns_in_relation(existing_relation) %}
+      {% set dest_columns = [] %}
+        {% set ignore_columns_config = config.get('ignore_columns') %}
+        {% if ignore_columns_config is none %}
+            {% set dest_columns = adapter.get_columns_in_relation(existing_relation) %}
+        {% else %}
+            {% set ignore_columns = ignore_columns_config.get(existing_relation.identifier, []) %}
+            {% for col in adapter.get_columns_in_relation(existing_relation) %}
+                {% if col.name not in ignore_columns %}
+                    {% do dest_columns.append(col) %}
+                {% endif %}
+            {% endfor %}
+        {% endif %}
     {% endif %}
 
     {#-- Get the incremental_strategy, the macro to use for the strategy, and build the sql --#}
